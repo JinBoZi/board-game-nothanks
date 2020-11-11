@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Board Game : No Thanks</title>
+<style>
+html,body{height:100%;}
+div{
+    margin: 0px;
+    border: 0px;
+    padding: 0px;
+}
+.cardrow{
+    border: 0.2vh solid #EEE8AA;
+    height: 8vh;
+    width: 100%;
+}
+.cardcol{
+    border-radius: 1vh;
+    background: #8AC007;
+    margin: 0.5vh 0.5vw;
+    width: 7.5vw;
+    height: 7vh;
+    float: left;
+    line-height: 7vh;
+    font-size: 4vw;
+    font-weight: bold;
+    text-align: center;
+}
+.player{
+    border-radius: 2vh;
+    border: 0.1vh solid green;
+    background: #60acfc;
+    margin: 0.5vh 1vw;
+    width: 10.5vw;
+    height: 7vh;
+    float: left;
+    line-height: 3.5vh;
+    font-size: 3vw;
+    font-weight: bold;
+    text-align: center;
+}
+.ctlrow{
+    border: 0.2vh solid transparent;
+    border-top: 0.2vh solid #EEE8AA;
+    height: 12vh;
+    width: 100%;
+}
+.ctlcol{
+    border-radius: 1vh;
+    background: #FFFACD;
+    margin: 1vh 1vw;
+    width: 18vw;
+    height: 10vh;
+    float: left;
+    line-height: 5vh;
+    font-size: 4vw;
+    font-weight: bold;
+    text-align: center;
+}
+.bt{
+    border-radius: 1vh;
+    margin: 0.6vh 1vw;
+    width: 34vw;
+    height: 4vh;
+    line-height: 4vh;
+    font-size: 4vw;
+    font-weight: bold;
+    text-align: center;
+}
+#begin{
+    position: absolute;
+    left:0;
+    top:200px;
+    right:0;
+    margin: auto;
+    line-height: 150px;
+    font-size: 50px;
+    font-weight: bold;
+    text-align: center;
+}
+input{
+    border: 5px solid green;
+    margin: 20px;
+    border-radius: 20px;
+    line-height: 150px;
+    font-size: 50px;
+    font-weight: bold;
+    text-align: center;
+    width: 60%;
+}
+.beginbt{
+    background:	#00BFFF;
+    border-radius: 20px;
+    margin: 50px auto;
+    width: 80%;
+    height: 150px;
+    line-height: 150px;
+    font-size: 50px;
+    font-weight: bold;
+    text-align: center;
+}
+ol{
+    font-size: 40px;
+    line-height: 60px;
+    text-align: left;
+    width: 80%;
+    margin:10px 10%;
+    font-family: "STFangsong";
+}
+</style>
+</head>
+<body>
+    <div id="begin">
+        房间编号: <input type="text" id="room"><br>
+        玩家昵称: <input type="text" id="name">
+        <div class="beginbt" onclick="myajax('create')">创建房间</div>
+        <div class="beginbt" onclick="myajax('join')">加入房间</div>
+        游戏规则
+        <ol>
+            <li>每个玩家在自己的回合都有两个选择：接收卡牌或者传递卡牌</li>
+            <li>接收卡牌则获得卡牌上的筹码，传递卡牌则要将自己的一枚筹码放到卡牌上</li>
+            <li>接收的所有卡牌的点数和减去玩家剩余的筹码数，即其最终得分</li>
+            <li>若同时拥有多张点数连续的卡牌，只计算最小的点数</li>
+            <li>分数最低的玩家取得胜利</li>
+            <li>卡牌点数为3-35，为保证游戏随机性，随机弃用9张卡牌</li>
+            <li>玩家初始筹码数为11</li>
+        </ol>
+    </div>
+</body>
+
+<script>
+
+// 获取cookie中保存的房间号和玩家ID
+function getCookie(cname)
+{
+  var name = cname + "=";
+  var ca = document.cookie.split(';');
+  for(var i=0; i<ca.length; i++) 
+  {
+    var c = ca[i].trim();
+    if (c.indexOf(name)==0) return c.substring(name.length,c.length);
+  }
+  return "";
+}
+
+// 服务端传来的字符串主要包含3部分信息
+// 1.前33位指示每张卡牌所在的位置,0表示在牌库,1-7表示在对应玩家手中
+// 2.中间3位指示正在轮转的卡牌的状态,分别指示当前传递卡牌的点数、卡牌在哪个玩家面前(即现在是哪个玩家决定接受还是传递卡牌)、卡牌上已累计的筹码数
+// 3.最后一部分两两一组,指示玩家的昵称和剩余筹码数
+// 注意由于逗号分隔,最后还有一个空元素
+
+// 展示玩家筹码和拥有的卡牌
+function show(res){
+
+    var playerColor = new Array("#60acfc","#5bc49f","#feb64d","#32d3eb","#ff7c7c","#9287e7","#95a5a6");
+
+    document.body.innerHTML="";
+    // 减37即33(卡牌位置)+3(游戏状态)+1(空元素)
+    var playerNum = (res.length-37)/2;
+    for(var index=0;index<playerNum;index++){
+        var count = 1;
+        // 为该玩家建立一行
+        var rowdom = document.createElement("div");
+        rowdom.setAttribute("class","cardrow");
+        // 展示玩家信息
+        var coldom = document.createElement("div");
+        coldom.setAttribute("class","player");
+        coldom.style.background = playerColor[index];
+        coldom.innerHTML = res[36+index*2]+"</br>"+res[37+index*2];
+        rowdom.appendChild(coldom);
+        for(var cur=0;cur<33;cur++){
+        		// 如果卡牌放满一行,则另起一行
+            if(res[cur] == index+1){
+                if(count == 11){
+                    document.body.appendChild(rowdom);
+                    count = 1;
+                    rowdom = document.createElement("div");
+                    rowdom.setAttribute("class","cardrow");
+                    var coldom = document.createElement("div");
+                    coldom.setAttribute("class","player");
+                    // 只有第一行需要展示玩家信息
+                    coldom.style.visibility = "hidden";
+                    rowdom.appendChild(coldom);
+                }
+                // 展示卡牌信息
+                var coldom = document.createElement("div");
+                coldom.setAttribute("class","cardcol");
+                coldom.innerHTML = cur+3;
+                coldom.style.background = playerColor[index];
+                rowdom.appendChild(coldom);
+                count++;
+            }
+        }
+        document.body.appendChild(rowdom);
+    }
+
+}
+
+// 展示控制面板(游戏状态、接收还是传递卡牌的按钮)
+function contrl(res){
+    var ctldom = document.createElement("div");
+    ctldom.setAttribute("class","ctlrow");
+
+    var ctlcdom = document.createElement("div");
+    ctlcdom.setAttribute("class","ctlcol");
+    ctlcdom.innerHTML = "当前卡牌</br>"+res[33];
+    ctldom.appendChild(ctlcdom);
+
+    var ctlcdom = document.createElement("div");
+    ctlcdom.setAttribute("class","ctlcol");
+    ctlcdom.innerHTML = "当前玩家</br>"+res[34+res[34]*2];
+    ctldom.appendChild(ctlcdom);
+
+    var ctlcdom = document.createElement("div");
+    ctlcdom.setAttribute("class","ctlcol");
+    ctlcdom.innerHTML = "卡牌筹码</br>"+res[35];
+    ctldom.appendChild(ctlcdom);
+
+    var btdom = document.createElement("div");
+    btdom.style = "width:34vw; margin:1vh 1vw; height:10vh; float:left";
+    // 只有当前玩家可以操作
+    if(getCookie("playerid") == res[34]){
+    		// 还有剩余筹码才可以选择传递卡牌
+        if(res[35+res[34]*2] == 0)
+            btdom.innerHTML = "<div class=\"bt\" style=\"background:#00FF7F\" onclick=\"myajax('accept')\">接收卡牌</div><div class=\"bt\" style=\"background:#A9A9A9\" onclick=\"alert('筹码不足')\">传递卡牌</div>";
+        else btdom.innerHTML = "<div class=\"bt\" style=\"background:#00FF7F\" onclick=\"myajax('accept')\">接收卡牌</div><div class=\"bt\" style=\"background:#FA8072\" onclick=\"myajax('pass')\">传递卡牌</div>";
+    }  
+    else btdom.innerHTML = "<div class=\"bt\" style=\"background:#A9A9A9\" onclick=\"alert('不是你的回合')\">接收卡牌</div><div class=\"bt\" style=\"background:#A9A9A9\" onclick=\"alert('不是你的回合')\">传递卡牌</div>";
+    ctldom.appendChild(btdom);
+
+    document.body.appendChild(ctldom);
+}
+
+// 计算玩家分数，展示游戏结果
+function over(res){
+
+    var playerColor = new Array("#FFD700","#C0C0C0","#CD853F","#FAF0E6","#FAF0E6","#FAF0E6","#FAF0E6");
+    var players = new Array();
+    var playerNum = (res.length-37)/2;
+    for(var index=0;index<playerNum;index++){
+        players[index] = {name:res[36+index*2],score:-res[37+index*2]};
+    }
+    for(var index=0;index<33;index++){
+    		// 连续点数不计分
+        if(res[index]!=0 && (index==0 || res[index-1]!=res[index])){
+            players[res[index]-1].score += (index+3);
+        }
+    }
+    // 分数越低排名越高
+    players.sort(function(a,b){return a.score-b.score});
+    
+    // 依次展示每个玩家的分数
+    var rowdom = document.createElement("div");
+    rowdom.setAttribute("class","cardrow");
+    for(var index=0;index<playerNum;index++){
+        var coldom = document.createElement("div");
+        coldom.setAttribute("class","player");
+        coldom.style.background = playerColor[index];
+        coldom.innerHTML = players[index].name+"</br>"+players[index].score;
+        rowdom.appendChild(coldom);
+    }
+    var coldom = document.createElement("div");
+    coldom.innerHTML = "<div class='player' style='background:#FA8072' onclick=\"myajax('over')\">删除</br>房间</div>";
+    rowdom.appendChild(coldom);
+    document.body.appendChild(rowdom);
+}
+
+// 通过AJAX向服务端请求每个卡牌的状态和游戏进程状态位
+function myajax(cmd){
+
+    if (window.XMLHttpRequest) xmlhttp=new XMLHttpRequest();
+    else xmlhttp=new ActiveXObject("Microsoft.XMLHTTP");
+
+    var url = "nothanks.php?cmd=" + cmd;
+    if(cmd=="create" || cmd=="join"){
+        url += "&room="+document.getElementById("room").value;
+        url += "&name="+document.getElementById("name").value;
+    }
+    xmlhttp.onreadystatechange=function()
+    {
+        if (xmlhttp.readyState==4 && xmlhttp.status==200)
+        {
+            var res = xmlhttp.responseText.split(",");
+            if(cmd == "over"){
+                document.body.innerHTML="房间已删除，请刷新页面重新创建房间开始游戏~";
+                return;
+            }
+            show(res);
+            if(res[33] == 0) over(res);
+            else{
+                contrl(res);
+                // 循环刷新页面
+                setTimeout("myajax("+"'show'"+")", 200);
+            }
+        }
+    }
+    xmlhttp.open("GET",url,true);
+    xmlhttp.send();
+
+}
+
+</script>
+
+</html>
